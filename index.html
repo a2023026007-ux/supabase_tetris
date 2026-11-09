@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="브라우저에서 바로 즐기는 블록 퍼즐 게임" />
+    <meta name="theme-color" content="#0b0f1a" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>Block Drop</title>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand"><span class="logo" aria-hidden="true"></span>Block Drop</div>
+      <div id="auth-area" class="auth-area"></div>
+    </header>
+
+    <main class="layout">
+      <aside class="panel panel-left">
+        <section class="card">
+          <h2>홀드</h2>
+          <canvas id="hold" class="mini-canvas" aria-label="홀드한 블록"></canvas>
+        </section>
+        <section class="card stats" aria-live="polite">
+          <div class="stat"><span>점수</span><strong id="stat-score">0</strong></div>
+          <div class="stat"><span>레벨</span><strong id="stat-level">1</strong></div>
+          <div class="stat"><span>줄</span><strong id="stat-lines">0</strong></div>
+        </section>
+      </aside>
+
+      <section class="board-wrap">
+        <canvas id="board" aria-label="게임 보드"></canvas>
+        <div id="overlay" class="overlay">
+          <div id="screen-start" class="screen">
+            <h1>Block Drop</h1>
+            <p class="lead">블록을 쌓아 가로줄을 채우세요!</p>
+            <button id="btn-start" class="btn primary big" type="button">게임 시작</button>
+            <p id="start-hint" class="hint"></p>
+          </div>
+          <div id="screen-pause" class="screen" hidden>
+            <h2>일시정지</h2>
+            <button id="btn-resume" class="btn primary big" type="button">계속하기</button>
+            <button id="btn-quit" class="btn" type="button">그만하기</button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel panel-right">
+        <section class="card">
+          <h2>다음</h2>
+          <canvas id="next" class="mini-canvas" aria-label="다음 블록"></canvas>
+        </section>
+        <nav class="card menu" aria-label="메뉴">
+          <button id="btn-leaderboard" class="btn" type="button">🏆 리더보드</button>
+          <button id="btn-feedback" class="btn" type="button">💬 피드백</button>
+          <button id="btn-settings" class="btn" type="button">⚙️ 사운드</button>
+          <button id="btn-mute" class="btn" type="button" aria-pressed="false">🔊 소리 켜짐</button>
+        </nav>
+        <section class="card help">
+          <h2>조작</h2>
+          <dl>
+            <dt><kbd>←</kbd><kbd>→</kbd></dt><dd>이동</dd>
+            <dt><kbd>↓</kbd></dt><dd>소프트 드롭</dd>
+            <dt><kbd>Space</kbd></dt><dd>하드 드롭</dd>
+            <dt><kbd>↑</kbd><kbd>X</kbd></dt><dd>회전</dd>
+            <dt><kbd>Z</kbd></dt><dd>반대 회전</dd>
+            <dt><kbd>C</kbd></dt><dd>홀드</dd>
+            <dt><kbd>P</kbd><kbd>Esc</kbd></dt><dd>일시정지</dd>
+            <dt><kbd>M</kbd></dt><dd>음소거</dd>
+          </dl>
+        </section>
+      </aside>
+    </main>
+
+    <div id="touch-controls" class="touch-controls" aria-label="터치 조작">
+      <button type="button" data-action="hold">홀드</button>
+      <button type="button" data-action="rotateCCW" aria-label="반대 회전">⟲</button>
+      <button type="button" data-action="rotateCW" aria-label="회전">⟳</button>
+      <button type="button" data-action="pause" aria-label="일시정지">Ⅱ</button>
+      <button type="button" data-action="left" aria-label="왼쪽">◀</button>
+      <button type="button" data-action="softDrop" aria-label="소프트 드롭">▼</button>
+      <button type="button" data-action="right" aria-label="오른쪽">▶</button>
+      <button type="button" data-action="hardDrop" aria-label="하드 드롭">⤓</button>
+    </div>
+
+    <!-- 게임 오버 -->
+    <dialog id="dlg-gameover" class="dialog">
+      <div class="dialog-head"><h2>게임 오버</h2></div>
+      <div class="result-grid">
+        <div><span>점수</span><strong id="go-score">0</strong></div>
+        <div><span>레벨</span><strong id="go-level">1</strong></div>
+        <div><span>줄</span><strong id="go-lines">0</strong></div>
+      </div>
+      <div id="go-save" class="save-box"></div>
+      <div class="dialog-actions">
+        <button id="go-leaderboard" class="btn" type="button">🏆 리더보드</button>
+        <button id="go-close" class="btn" type="button">닫기</button>
+        <button id="go-retry" class="btn primary" type="button">다시 하기</button>
+      </div>
+    </dialog>
+
+    <!-- 로그인 / 비밀번호 찾기 -->
+    <dialog id="dlg-login" class="dialog">
+      <div class="dialog-head">
+        <h2 id="login-title">로그인</h2>
+        <form method="dialog"><button class="icon-btn" aria-label="닫기">✕</button></form>
+      </div>
+      <form id="form-login" class="form" novalidate>
+        <label class="field">이메일<input name="email" type="email" autocomplete="email" required /></label>
+        <label class="field">비밀번호<input name="password" type="password" autocomplete="current-password" required /></label>
+        <p class="form-msg" role="alert"></p>
+        <button class="btn primary" type="submit">로그인</button>
+        <div class="form-links">
+          <button type="button" class="link" id="link-forgot">비밀번호 찾기</button>
+          <button type="button" class="link" id="link-to-signup">회원가입</button>
+        </div>
+      </form>
+      <form id="form-forgot" class="form" novalidate hidden>
+        <p class="muted">가입한 이메일로 비밀번호 재설정 링크를 보내드립니다.</p>
+        <label class="field">이메일<input name="email" type="email" autocomplete="email" required /></label>
+        <p class="form-msg" role="alert"></p>
+        <button class="btn primary" type="submit">재설정 메일 보내기</button>
+        <div class="form-links">
+          <button type="button" class="link" id="link-back-login">로그인으로 돌아가기</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- 회원가입 -->
+    <dialog id="dlg-signup" class="dialog">
+      <div class="dialog-head">
+        <h2>회원가입</h2>
+        <form method="dialog"><button class="icon-btn" aria-label="닫기">✕</button></form>
+      </div>
+      <form id="form-signup" class="form" novalidate>
+        <label class="field">
+          아이디
+          <input name="username" type="text" autocomplete="username" maxlength="12" required />
+          <small id="username-status" class="field-status">3~12자, 영문·숫자·한글·밑줄(_)</small>
+        </label>
+        <label class="field">이메일<input name="email" type="email" autocomplete="email" required /></label>
+        <label class="field">비밀번호 (8자 이상)<input name="password" type="password" autocomplete="new-password" minlength="8" required /></label>
+        <label class="field">비밀번호 확인<input name="password2" type="password" autocomplete="new-password" required /></label>
+        <p class="form-msg" role="alert"></p>
+        <button class="btn primary" type="submit">가입하기</button>
+        <div class="form-links">
+          <span class="muted small">이미 계정이 있나요?</span>
+          <button type="button" class="link" id="link-to-login">로그인</button>
+        </div>
+      </form>
+      <div id="signup-done" class="done-box" hidden>
+        <p class="done-icon" aria-hidden="true">📧</p>
+        <p><strong id="signup-done-email"></strong>(으)로 인증 메일을 보냈습니다.</p>
+        <p class="muted">메일의 링크를 누르면 가입이 끝나고 자동으로 로그인됩니다.</p>
+        <form method="dialog"><button class="btn primary">확인</button></form>
+      </div>
+    </dialog>
+
+    <!-- 새 비밀번호 -->
+    <dialog id="dlg-newpw" class="dialog">
+      <div class="dialog-head">
+        <h2>새 비밀번호 설정</h2>
+        <form method="dialog"><button class="icon-btn" aria-label="닫기">✕</button></form>
+      </div>
+      <form id="form-newpw" class="form" novalidate>
+        <label class="field">새 비밀번호 (8자 이상)<input name="password" type="password" autocomplete="new-password" required /></label>
+        <label class="field">새 비밀번호 확인<input name="password2" type="password" autocomplete="new-password" required /></label>
+        <p class="form-msg" role="alert"></p>
+        <button class="btn primary" type="submit">비밀번호 변경</button>
+      </form>
+    </dialog>
+
+    <!-- 리더보드 -->
+    <dialog id="dlg-leaderboard" class="dialog wide">
+      <div class="dialog-head">
+        <h2>🏆 리더보드</h2>
+        <form method="dialog"><button class="icon-btn" aria-label="닫기">✕</button></form>
+      </div>
+      <p class="muted small">사용자별 최고 점수 상위 10명</p>
+      <div class="table-wrap">
+        <table class="lb">
+          <thead>
+            <tr><th>순위</th><th>아이디</th><th class="num">점수</th><th class="num">레벨</th><th>날짜</th></tr>
+          </thead>
+          <tbody id="lb-body"></tbody>
+        </table>
+      </div>
+      <p id="lb-me" class="lb-me"></p>
+    </dialog>
+
+    <!-- 피드백 -->
+    <dialog id="dlg-feedback" class="dialog wide">
+      <div class="dialog-head">
+        <h2>💬 피드백</h2>
+        <form method="dialog"><button class="icon-btn" aria-label="닫기">✕</button></form>
+      </div>
+      <div id="fb-form-area"></div>
+      <h3 class="section-title">최근 피드백</h3>
+      <ul id="fb-list" class="fb-list"></ul>
+    </dialog>
+
+    <!-- 사운드 설정 -->
+    <dialog id="dlg-settings" class="dialog">
+      <div class="dialog-head">
+        <h2>⚙️ 사운드 설정</h2>
+        <form method="dialog"><button class="icon-btn" aria-label="닫기">✕</button></form>
+      </div>
+      <div class="settings">
+        <div class="setting-row">
+          <label class="check"><input id="set-bgm-on" type="checkbox" /> 배경음악</label>
+          <input id="set-bgm-vol" type="range" min="0" max="100" step="1" aria-label="배경음악 볼륨" />
+        </div>
+        <div class="setting-row">
+          <label class="check"><input id="set-sfx-on" type="checkbox" /> 효과음</label>
+          <input id="set-sfx-vol" type="range" min="0" max="100" step="1" aria-label="효과음 볼륨" />
+        </div>
+        <label class="check"><input id="set-muted" type="checkbox" /> 전체 음소거 (M)</label>
+      </div>
+    </dialog>
+
+    <!-- 내 기록 -->
+    <dialog id="dlg-mystats" class="dialog wide">
+      <div class="dialog-head">
+        <h2 id="ms-title">내 기록</h2>
+        <form method="dialog"><button class="icon-btn" aria-label="닫기">✕</button></form>
+      </div>
+      <div id="ms-body"></div>
+    </dialog>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
